@@ -7,7 +7,7 @@ import PyPDF2
 
 # Download necessary NLTK data
 nltk.download('punkt')
-
+nltk.download('punkt_tab')
 st.set_page_config(page_title="Sentiment Analyzer", page_icon="📊")
 
 def get_sentiment(text):
