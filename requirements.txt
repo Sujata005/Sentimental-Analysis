@@ -1,0 +1,6 @@
+streamlit
+textblob
+newspaper3k
+nltk
+PyPDF2
+python-docx
