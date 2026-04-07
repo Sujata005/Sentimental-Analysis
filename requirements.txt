@@ -1,6 +1,7 @@
 streamlit
 textblob
 newspaper3k
+lxml[html_clean]
 nltk
 PyPDF2
 python-docx
