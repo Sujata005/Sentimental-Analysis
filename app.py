@@ -4,28 +4,35 @@ from newspaper import Article
 import nltk
 from docx import Document
 import PyPDF2
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
+# Initialize VADER
+analyzer = SentimentIntensityAnalyzer()
 # Download necessary NLTK data
 nltk.download('punkt')
 nltk.download('punkt_tab')
 st.set_page_config(page_title="Sentiment Analyzer", page_icon="📊")
 
-def get_sentiment(text):
-    blob = TextBlob(text)
-    polarity = blob.sentiment.polarity
-    subjectivity = blob.sentiment.subjectivity # New line
+def get_precise_sentiment(text):
+    # VADER is much better at context than TextBlob
+    vs = analyzer.polarity_scores(text)
+    compound = vs['compound']
     
-    if polarity > 0:
-        label = "Positive"
-        emoji = "😊"
-    elif polarity < 0:
-        label = "Negative"
-        emoji = "🌑"
-    else:
-        label = "Neutral"
-        emoji = "😐"
+    # Custom 'CS Student' Logic: Checking for high-impact negative words
+    # that standard lexicons sometimes under-weight in news context
+    trigger_words = ['war', 'attack', 'death', 'threat', 'casualty', 'psychopath']
+    count = sum(1 for word in trigger_words if word in text.lower())
+    
+    # If it's a grim news story, we nudge the score to be more realistic
+    if count >= 2:
+        compound -= 0.2
         
-    return label, emoji, polarity, subjectivity
+    if compound >= 0.05:
+        return "Positive", "😊", compound
+    elif compound <= -0.05:
+        return "Negative", "🌑", compound
+    else:
+        return "Neutral", "😐", compound
 
 def extract_text_from_pdf(file):
     reader = PyPDF2.PdfReader(file)
@@ -83,21 +90,20 @@ if final_text:
         st.write(final_text)
     
     if st.button("Analyze Sentiment"):
-        label, emoji, score, subj = get_sentiment(final_text)
+        label, emoji, score = get_precise_sentiment(final_text)
     
         st.divider()
-    # Creating 3 columns for a professional dashboard look
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
     
         with col1:
-            st.metric("Label", f"{label} {emoji}")
+            st.metric("Refined Sentiment", f"{label} {emoji}")
         with col2:
-            st.metric("Polarity Score", f"{round(score, 2)}")
-        with col3:
-            st.metric("Subjectivity", f"{round(subj, 2)}") # New Metric
+            # We round it to show clean data
+            st.metric("Confidence Score", f"{round(score, 2)}")
 
-    # Logic-based advice for the user
-        if subj > 0.6:
-            st.info("💡 **Note:** This text appears to be highly opinionated or emotional.")
+        if label == "Negative" and score < -0.5:
+            st.error("Critical: This content contains highly negative or alarming sentiment.")
+        elif label == "Positive":
+            st.success("The tone is generally positive.")
         else:
-            st.info("💡 **Note:** This text appears to be mostly factual/objective.")
+            st.info("The tone is neutral or balanced.")

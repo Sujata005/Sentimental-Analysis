@@ -5,3 +5,4 @@ lxml[html_clean]
 nltk
 PyPDF2
 python-docx
+vaderSentiment
