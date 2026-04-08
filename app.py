@@ -13,12 +13,19 @@ st.set_page_config(page_title="Sentiment Analyzer", page_icon="📊")
 def get_sentiment(text):
     blob = TextBlob(text)
     polarity = blob.sentiment.polarity
+    subjectivity = blob.sentiment.subjectivity # New line
+    
     if polarity > 0:
-        return "Positive", "😊", polarity
+        label = "Positive"
+        emoji = "😊"
     elif polarity < 0:
-        return "Negative", "🌑", polarity
+        label = "Negative"
+        emoji = "🌑"
     else:
-        return "Neutral", "😐", polarity
+        label = "Neutral"
+        emoji = "😐"
+        
+    return label, emoji, polarity, subjectivity
 
 def extract_text_from_pdf(file):
     reader = PyPDF2.PdfReader(file)
@@ -76,19 +83,21 @@ if final_text:
         st.write(final_text)
     
     if st.button("Analyze Sentiment"):
-        label, emoji, score = get_sentiment(final_text)
-        
+        label, emoji, score, subj = get_sentiment(final_text)
+    
         st.divider()
-        col1, col2 = st.columns(2)
-        
+    # Creating 3 columns for a professional dashboard look
+        col1, col2, col3 = st.columns(3)
+    
         with col1:
-            st.metric("Sentiment", f"{label} {emoji}")
+            st.metric("Label", f"{label} {emoji}")
         with col2:
             st.metric("Polarity Score", f"{round(score, 2)}")
-        
-        if label == "Positive":
-            st.success("The overall tone is positive!")
-        elif label == "Negative":
-            st.error("The overall tone is negative.")
+        with col3:
+            st.metric("Subjectivity", f"{round(subj, 2)}") # New Metric
+
+    # Logic-based advice for the user
+        if subj > 0.6:
+            st.info("💡 **Note:** This text appears to be highly opinionated or emotional.")
         else:
-            st.warning("The tone is neutral.")
+            st.info("💡 **Note:** This text appears to be mostly factual/objective.")
