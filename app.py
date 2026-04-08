@@ -6,24 +6,23 @@ from docx import Document
 import PyPDF2
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
+# MUST BE FIRST
+st.set_page_config(page_title="Sentiment Analyzer", page_icon="📊")
+
 # Initialize VADER
 analyzer = SentimentIntensityAnalyzer()
+
 # Download necessary NLTK data
 nltk.download('punkt')
 nltk.download('punkt_tab')
-st.set_page_config(page_title="Sentiment Analyzer", page_icon="📊")
 
 def get_precise_sentiment(text):
-    # VADER is much better at context than TextBlob
     vs = analyzer.polarity_scores(text)
     compound = vs['compound']
     
-    # Custom 'CS Student' Logic: Checking for high-impact negative words
-    # that standard lexicons sometimes under-weight in news context
     trigger_words = ['war', 'attack', 'death', 'threat', 'casualty', 'psychopath']
     count = sum(1 for word in trigger_words if word in text.lower())
     
-    # If it's a grim news story, we nudge the score to be more realistic
     if count >= 2:
         compound -= 0.2
         
@@ -45,15 +44,28 @@ def extract_text_from_docx(file):
     doc = Document(file)
     return "\n".join([para.text for para in doc.paragraphs])
 
+# --- Sidebar ---
+with st.sidebar:
+    st.header("💡 About the Project")
+    st.info("""
+    **Tech Stack:**
+    - Python (Streamlit)
+    - VADER (Sentiment Logic)
+    - Newspaper3k (Scraping)
+    
+    **Precision Logic:**
+    Hybrid approach using VADER lexicon with custom weighted heuristics for news context.
+    """)
+    st.markdown("---")
+    st.write("👨‍💻 **Developer:** Sujata Bijalwan")
+
 # --- UI Setup ---
 st.title("📊 Sentiment Analysis Dashboard")
 st.markdown("Analyze the sentiment of news articles, documents, or raw text.")
 
-tabs = st.tabs(["Link/URL", "Upload File", "Paste Text"])
-
+tabs = st.tabs(["🔗 Link/URL", "📁 Upload File", "✍️ Paste Text"])
 final_text = ""
 
-# Tab 1: URL Input
 with tabs[0]:
     url = st.text_input("Enter Article URL:")
     if url:
@@ -63,11 +75,15 @@ with tabs[0]:
             article.parse()
             article.nlp()
             final_text = article.summary
-            st.info(f"**Article Title:** {article.title}")
+            st.success(f"**Article Title:** {article.title}")
+            
+            # KEYWORDS MOVE HERE (So they only show for URLs)
+            if hasattr(article, 'keywords') and article.keywords:
+                st.write("### 🏷️ Top Keywords")
+                st.markdown(" ".join([f"`{k}`" for k in article.keywords[:10]]))
         except Exception as e:
             st.error(f"Error fetching article: {e}")
 
-# Tab 2: File Upload
 with tabs[1]:
     uploaded_file = st.file_uploader("Upload a file", type=["txt", "pdf", "docx"])
     if uploaded_file:
@@ -78,7 +94,6 @@ with tabs[1]:
         elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
             final_text = extract_text_from_docx(uploaded_file)
 
-# Tab 3: Manual Text
 with tabs[2]:
     user_text = st.text_area("Paste your text here:")
     if user_text:
@@ -86,10 +101,10 @@ with tabs[2]:
 
 # --- Analysis Logic ---
 if final_text:
-    with st.expander("View Extracted Content"):
+    with st.expander("🔍 View Extracted Content"):
         st.write(final_text)
     
-    if st.button("Analyze Sentiment"):
+    if st.button("🚀 Analyze Sentiment"):
         label, emoji, score = get_precise_sentiment(final_text)
     
         st.divider()
@@ -98,12 +113,16 @@ if final_text:
         with col1:
             st.metric("Refined Sentiment", f"{label} {emoji}")
         with col2:
-            # We round it to show clean data
             st.metric("Confidence Score", f"{round(score, 2)}")
+        
+        # Visual Progress Bar
+        normalized_score = (score + 1) / 2
+        st.write(f"**Sentiment Intensity Spectrum (Negative to Positive):**")
+        st.progress(normalized_score)
 
         if label == "Negative" and score < -0.5:
-            st.error("Critical: This content contains highly negative or alarming sentiment.")
+            st.error("🚨 **Critical:** This content contains highly negative or alarming sentiment.")
         elif label == "Positive":
-            st.success("The tone is generally positive.")
+            st.success("✨ **Result:** The tone is generally positive.")
         else:
-            st.info("The tone is neutral or balanced.")
+            st.warning("⚖️ **Result:** The tone is neutral or balanced.")
